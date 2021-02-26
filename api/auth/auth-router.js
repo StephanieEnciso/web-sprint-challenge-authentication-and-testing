@@ -30,6 +30,7 @@ async function isJokeUserInDb(req, res, next) {
   }
 }
 
+
 router.post('/register', verifyReq, isJokeUserInDb,(req, res) => {
   const credentials = req.body;
 
@@ -73,8 +74,26 @@ router.post('/register', verifyReq, isJokeUserInDb,(req, res) => {
   */
 });
 
-router.post('/login', (req, res) => {
-  res.end('implement login, please!');
+router.post('/login', verifyReq, (req, res) => {
+  const { username, password } = req.body;
+  if(validate(req.body)) {
+    JokeUsers.findBy({ username: username })
+      .then(([jokeUser]) => {
+        if(jokeUser && bcryptjs.compareSync(password, jokeUser.password)) {
+          const token = makeToken(jokeUser)
+          res.status(200).json({
+            message: `welcome, ${jokeUser.username}`,
+            token
+          })
+        } else {
+          res.status(401).json("invalid credentials")
+        }
+      })
+      .catch(err => {
+        res.status(500).json(`Server error: ${err}`)
+      })
+  }
+  // res.end('implement login, please!');
   /*
     IMPLEMENT
     You are welcome to build additional middlewares to help with the endpoint's functionality.
@@ -100,4 +119,14 @@ router.post('/login', (req, res) => {
   */
 });
 
+function makeToken(jokeUser) {
+  const payload = {
+    subject: jokeUser.id,
+    username: jokeUser.username,
+  }
+  const options = {
+    expiresIn: '500s'
+  }
+  return jwt.sign(payload, jwtSecret, options)
+}
 module.exports = router;
