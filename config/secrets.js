@@ -1,4 +1,4 @@
-const jwtSecret = process.env.JWT_Secret || 'hushh';
+const jwtSecret = process.env.JWT_SECRET || 'hushh';
 
 module.exports = {
     jwtSecret
