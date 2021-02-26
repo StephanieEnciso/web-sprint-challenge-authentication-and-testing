@@ -1,7 +1,52 @@
 const router = require('express').Router();
+const bcryptjs = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 
-router.post('/register', (req, res) => {
-  res.end('implement register, please!');
+const JokeUsers = require('../jokes/jokes-model');
+const { jwtSecret } = require('../../config/secrets');
+
+function validate(user) {
+  return Boolean(user.username && user.password && typeof user.password === 'string')
+};
+
+function verifyReq(req, res, next) {
+  if (!req.body.username || !req.body.password) {
+    res.status(401).json("username and password required")
+  } else {
+    next()
+  }
+}
+
+async function isJokeUserInDb(req, res, next) {
+  try{
+    const rows = await JokeUsers.findBy({username: req.body.username})
+    if(!rows.length) {
+      next();
+    } else {
+      res.status(400).json("username taken")
+    }
+  } catch(err) {
+    res.status(500).json(`Server error: ${err} `)
+  }
+}
+
+router.post('/register', verifyReq, isJokeUserInDb,(req, res) => {
+  const credentials = req.body;
+
+  if(validate(credentials)) {
+    const rounds = process.env.BCRYPT_ROUNDS || 9;
+    const hash = bcryptjs.hashSync(credentials.password, rounds);
+    credentials.password = hash;
+
+    JokeUsers.add(credentials)
+      .then(jokeUser => {
+        res.status(201).json(jokeUser);
+      })
+      .catch(err => {
+        res.status(500).json(`Server error: ${err}`)
+      })
+  }
+  // res.end('implement register, please!');
   /*
     IMPLEMENT
     You are welcome to build additional middlewares to help with the endpoint's functionality.
