@@ -54,3 +54,18 @@ describe('testing [POST] /api/auth/register', () => {
     })
   })
 })
+
+describe('[GET] /api/jokes', () => {
+  beforeEach(async () => {
+    await db('users').truncate()
+    await request(server).post('/api/auth/register').send(user)
+  })
+  it('responds with correct status code when token is missing', async () => {
+    const res = await request(server).get('/api/jokes')
+    expect(res.statusCode).toEqual(401)
+  })
+  it('responds with the message "token required" when token is missing', async () => {
+    const res = await request(server).get('/api/jokes')
+    expect(JSON.stringify(res.body)).toEqual(expect.stringMatching(/token required/i))
+  })
+})
