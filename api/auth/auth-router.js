@@ -1,7 +1,54 @@
 const router = require('express').Router();
+const bcryptjs = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 
-router.post('/register', (req, res) => {
-  res.end('implement register, please!');
+const User = require('../jokes/jokes-model');
+const { jwtSecret } = require('../../config/secrets');
+const { userParams } = require('../../data/dbConfig');
+
+function verify(user) {
+  return Boolean(user.username && user.password && typeof user.password === 'string')
+}
+
+function verifyBody(req, res, next) {
+  if(!req.body.username || !req.body.password) {
+    res.status(400).json("username and password required")
+  } else {
+    next()
+  }
+}
+
+async function verifyUserInDb(req, res, next) {
+  try {
+    const rows = await User.findBy({username: req.body.username})
+    if(!rows.length) {
+      next();
+    } else {
+      res.status(400).json("username taken")
+    }
+  } catch(err) {
+    res.status(500).json(`Server error: ${err.message}`)
+  }
+}
+
+router.post('/register', verifyBody, verifyUserInDb, (req, res) => {
+  const credentials = req.body;
+
+  if(verify(credentials)) {
+    const rounds = process.env.BCRYPT_ROUNDS || 10;
+    const hash = bcryptjs.hashSync(credentials.password, rounds);
+    credentials.password = hash;
+
+    User.insert(credentials)
+      .then(user => {
+        res.status(201).json(user)
+      })
+      .catch(err => {
+        res.status(500).json(`Server error: ${err.message}`)
+      })
+  } else {
+    res.status(500).json("user could not be added")
+  }
   /*
     IMPLEMENT
     You are welcome to build additional middlewares to help with the endpoint's functionality.
